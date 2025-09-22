@@ -22,7 +22,7 @@ SPACES_ENDPOINT = f"https://{SPACES_REGION}.digitaloceanspaces.com"
 LAST_RUN_FILE = os.path.join(DOCS_DIR, "last_run.json")
 STATE_FILE = os.path.join(DOCS_DIR, "state.json")
 
-# Khởi tạo S3 client cho Spaces
+# Init S3 client
 session = boto3.session.Session()
 s3_client = session.client(
     's3',
@@ -34,39 +34,39 @@ s3_client = session.client(
 )
 
 def upload_to_spaces(local_path, object_name, make_public=False):
-    """Upload file lên Spaces, optional public read"""
+    """Upload file to Spaces, optional public read"""
     try:
         extra_args = {'ACL': 'public-read'} if make_public else {}
         s3_client.upload_file(local_path, SPACES_BUCKET, object_name, ExtraArgs=extra_args)
         url = f"https://{SPACES_BUCKET}.{SPACES_REGION}.digitaloceanspaces.com/{object_name}"
-        print(f"📤 Uploaded {local_path} to {url}", flush=True)
+        print(f"Uploaded {local_path} to {url}", flush=True)
         return url
     except ClientError as e:
-        print(f"❌ Spaces upload error: {e}", flush=True)
+        print(f"Spaces upload error: {e}", flush=True)
         return None
 
 def load_state():
-    """Tải state.json từ Spaces"""
+    """Load state.json from Spaces"""
     try:
         os.makedirs(DOCS_DIR, exist_ok=True)
         s3_client.download_file(SPACES_BUCKET, "state.json", STATE_FILE)
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            print("📥 Loaded state.json from Spaces", flush=True)
+            print("Loaded state.json from Spaces", flush=True)
             return json.load(f)
     except ClientError as e:
-        print(f"⚠️ No state.json found in Spaces, starting fresh: {e}", flush=True)
+        print(f"No state.json found in Spaces, starting fresh: {e}", flush=True)
         return {}
 
 def save_state(state):
-    """Lưu state.json local rồi upload lên Spaces"""
+    """Save state.json locally then upload to Spaces"""
     os.makedirs(DOCS_DIR, exist_ok=True)
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=2)
     upload_to_spaces(STATE_FILE, "state.json", make_public=False)
-    print("📝 Saved state.json to Spaces", flush=True)
+    print("Saved state.json to Spaces", flush=True)
 
 def save_last_run(counts):
-    """Lưu counts local rồi upload lên Spaces"""
+    """Save counts local, then upload to Spaces"""
     os.makedirs(DOCS_DIR, exist_ok=True)
     with open(LAST_RUN_FILE, "w", encoding="utf-8") as f:
         json.dump(counts, f, indent=2)
@@ -74,14 +74,14 @@ def save_last_run(counts):
     return artefact_url
 
 def main():
-    print("🚀 Job started", flush=True)
+    print("Job started", flush=True)
     os.makedirs(DOCS_DIR, exist_ok=True)
     state = load_state()
 
     added, updated, skipped = [], [], []
     files_to_upload = []
 
-    print("📥 Fetching articles...", flush=True)
+    print("Fetching articles...", flush=True)
     articles = fetch_and_convert()
     print(f"Found {len(articles)} articles", flush=True)
 
@@ -108,34 +108,34 @@ def main():
             skipped.append(path)
 
     if files_to_upload:
-        print(f"📦 Uploading {len(files_to_upload)} files to vector store...", flush=True)
+        print(f"Uploading {len(files_to_upload)} files to vector store...", flush=True)
         result = upload_files(VECTOR_STORE_ID, files_to_upload)
         for r in result:
             slug = Path(r["path"]).stem
             state[slug]["file_id"] = r["new_file_id"]
-        print(f"✅ Uploaded {len(files_to_upload)} files to vector store", flush=True)
+        print(f"Uploaded {len(files_to_upload)} files to vector store", flush=True)
 
         # Optional: Upload delta articles lên Spaces
         for path in added + updated:
             rel_path = Path(path).relative_to(DOCS_DIR)
             upload_to_spaces(path, f"articles/{rel_path}", make_public=False)
     else:
-        print("ℹ️ No new or updated files to upload", flush=True)
+        print("No new or updated files to upload", flush=True)
 
     save_state(state)
     counts = {"added": len(added), "updated": len(updated), "skipped": len(skipped)}
     artefact_url = save_last_run(counts)
     if artefact_url:
-        print(f"🔗 Last run artefact: {artefact_url}", flush=True)
+        print(f"Last run artefact: {artefact_url}", flush=True)
     else:
-        print("⚠️ Artefact upload failed", flush=True)
+        print("Artefact upload failed", flush=True)
 
     print(counts, flush=True)
-    print("🏁 Job completed", flush=True)
+    print("Job completed", flush=True)
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"❌ Error: {e}", flush=True)
+        print(f"Error: {e}", flush=True)
         sys.exit(1)
