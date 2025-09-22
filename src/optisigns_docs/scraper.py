@@ -6,15 +6,22 @@ BASE = "https://support.optisigns.com"
 LOCALE = "en-us"
 
 
+import os
+
 def fetch_articles():
     page = 1
     all_articles = []
+    max_articles = int(os.environ.get("MAX_ARTICLES", "0"))  # 0 means no limit
     while True:
         url = f"{BASE}/api/v2/help_center/{LOCALE}/articles.json?page={page}&per_page=30"
         res = requests.get(url, timeout=15)
         res.raise_for_status()
         data = res.json()
-        all_articles.extend(data.get("articles", []))
+        articles = data.get("articles", [])
+        all_articles.extend(articles)
+        if max_articles > 0 and len(all_articles) >= max_articles:
+            all_articles = all_articles[:max_articles]
+            break
         if not data.get("next_page"):
             break
         page += 1

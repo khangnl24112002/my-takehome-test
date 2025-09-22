@@ -8,6 +8,7 @@ from botocore.client import Config
 from pathlib import Path
 from dotenv import load_dotenv
 from src.optisigns_docs.scraper import fetch_and_convert
+
 from src.optisigns_docs.uploader import upload_files
 from src.optisigns_docs.utils import file_hash
 
